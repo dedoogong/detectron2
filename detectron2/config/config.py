@@ -68,9 +68,7 @@ class CfgNode(_CfgNode):
         # to make it show up in docs
         return super().dump(*args, **kwargs)
 
-
 global_cfg = CfgNode()
-
 
 def get_cfg() -> CfgNode:
     """

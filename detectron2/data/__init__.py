@@ -7,6 +7,8 @@ from .build import (
     get_detection_dataset_dicts,
     load_proposals_into_dataset,
     print_instances_class_histogram,
+    build_yolact_detection_train_loader, # Seunghyun Lee added
+    build_yolact_detection_test_loader   # Seunghyun Lee added
 )
 from .catalog import DatasetCatalog, MetadataCatalog
 from .common import DatasetFromList, MapDataset

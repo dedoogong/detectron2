@@ -18,6 +18,12 @@ from detectron2.modeling.detector.layers.interpolate import InterpolateModule
 import numpy as np
 import torch.nn.functional as F
 from projects.Yolact import config
+from detectron2.layers.modules.multibox_loss import MultiBoxLoss
+criterion = MultiBoxLoss(num_classes=config.num_classes,
+                             pos_threshold=config.positive_iou_threshold,
+                             neg_threshold=config.negative_iou_threshold,
+                             negpos_ratio=config.ohem_negpos_ratio)
+
 __all__ = ["GeneralizedRCNN", "ProposalNetwork", "YolactBackboneWithFPN"]
 
 
@@ -176,14 +182,15 @@ class YolactBackboneWithFPN(nn.Module):
 
     def __init__(self, cfg_maskrcnn):
         super(YolactBackboneWithFPN, self).__init__()
-        cfg=cfg_maskrcnn
+        cfg = cfg_maskrcnn
+        self.device = torch.device(cfg.MODEL.DEVICE)
         self.backbone = build_backbone(cfg) ## build backbone using default detectron2's settings
 
         #self.freeze_bn() maybe it is alreay done in above step?? check!
 
 
         ## Yolact start ##
-        self.cfg=config.yolact_base_config
+        self.cfg = config.yolact_base_config
         #self.rpn = build_rpn(cfg, self.backbone.out_channels)
         #self.roi_heads = build_roi_heads(cfg, self.backbone.out_channels)
         ################################################################
@@ -218,14 +225,13 @@ class YolactBackboneWithFPN(nn.Module):
 
         #####################################
 
-
         self.prediction_layers = nn.ModuleList()
         self.selected_layers = [0,1,2,3,4]   # list(range(len(self.selected_layers) + self.cfg.fpn.num_downsample))#
         src_channels = [256,256,256,256,256] # [self.cfg.fpn.num_features] * len(self.selected_layers)#
         pred_aspect_ratios=[[[1, 0.5, 2]],[[1, 0.5, 2]],[[1, 0.5, 2]],[[1, 0.5, 2]],[[1, 0.5, 2]]]
         pred_scales=[[24],[48],[96],[192],[384]]
         self.num_classes = 81
-        self.mask_type_lincomb=1
+        self.mask_type_lincomb = 1
         self.mask_type = self.mask_type_lincomb
         self.eval_mask_branch = True
         self.mask_proto_prototypes_as_features=False
@@ -278,6 +284,13 @@ class YolactBackboneWithFPN(nn.Module):
 
         # For use in evaluation
         self.detect = Detect(self.num_classes, bkg_label=0, top_k=200, conf_thresh=0.05, nms_thresh=0.5)
+        self.to(self.device)
+
+        assert len(cfg.MODEL.PIXEL_MEAN) == len(cfg.MODEL.PIXEL_STD)
+        num_channels = len(cfg.MODEL.PIXEL_MEAN)
+        pixel_mean = torch.Tensor(cfg.MODEL.PIXEL_MEAN).to(self.device).view(num_channels, 1, 1)
+        pixel_std = torch.Tensor(cfg.MODEL.PIXEL_STD).to(self.device).view(num_channels, 1, 1)
+        self.normalizer = lambda x: (x - pixel_mean) / pixel_std
 
     def preprocess_image(self, batched_inputs):
         """
@@ -372,7 +385,7 @@ class YolactBackboneWithFPN(nn.Module):
             return losses
         '''
 
-        outs = self.backbone(images)#.tensor) I think images which is extracted from batched_inputs are already tensor
+        outs = self.backbone(images.tensor) #caution : use ".tensor" !!!!
         proto_out = None
         if self.mask_type == self.mask_type_lincomb and self.eval_mask_branch:
             with timer.env('proto'):
@@ -459,7 +472,9 @@ class YolactBackboneWithFPN(nn.Module):
             if self.use_semantic_segmentation_loss:
                 pred_outs['segm'] = self.semantic_seg_conv(outs[0])
 
-            return pred_outs
+            loss=criterion(pred_outs, targets, masks, num_crowds)
+
+            return pred_outs, loss
         else:
             if self.use_sigmoid_focal_loss:
                 # Note: even though conf[0] exists, this mode doesn't train it so don't use it

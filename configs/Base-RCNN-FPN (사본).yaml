@@ -1,0 +1,78 @@
+MODEL:
+  #META_ARCHITECTURE: "GeneralizedRCNN"
+  # from maskrcnn-benchmark-yolact
+  META_ARCHITECTURE: "YolactBackboneWithFPN"
+  BACKBONE:
+    NAME: "build_resnet_fpn_backbone"
+  RESNETS:
+    OUT_FEATURES: ["res2", "res3", "res4", "res5"]
+  FPN:
+    IN_FEATURES: ["res2", "res3", "res4", "res5"]
+  ANCHOR_GENERATOR:
+    SIZES: [[32], [64], [128], [256], [512]]  # One size for each in feature map
+    ASPECT_RATIOS: [[0.5, 1.0, 2.0]]  # Three aspect ratios (same for all in feature maps)
+  RPN:
+    IN_FEATURES: ["p2", "p3", "p4", "p5", "p6"]
+    PRE_NMS_TOPK_TRAIN: 2000  # Per FPN level
+    PRE_NMS_TOPK_TEST: 1000  # Per FPN level
+    # Detectron1 uses 2000 proposals per-batch,
+    # (See "modeling/rpn/rpn_outputs.py" for details of this legacy issue)
+    # which is approximately 1000 proposals per-image since the default batch size for FPN is 2.
+    POST_NMS_TOPK_TRAIN: 1000
+    POST_NMS_TOPK_TEST: 1000
+  ROI_HEADS:
+    NAME: "StandardROIHeads"
+    IN_FEATURES: ["p2", "p3", "p4", "p5"]
+  ROI_BOX_HEAD:
+    NAME: "FastRCNNConvFCHead"
+    NUM_FC: 2
+    POOLER_RESOLUTION: 7
+  ROI_MASK_HEAD:
+    NAME: "MaskRCNNConvUpsampleHead"
+    NUM_CONV: 4
+    POOLER_RESOLUTION: 14
+  # from maskrcnn-benchmark-yolact
+  #BACKBONE:
+  #  CONV_BODY: "R-101-FPN"
+  #RESNETS:
+  #  BACKBONE_OUT_CHANNELS: 256
+  #FPN:
+  #  LASTLEVEL: "LastLevelP6P7"
+  #  FPN_NO_256: 1
+  #RPN:
+  #  USE_FPN: True
+  #  ANCHOR_STRIDE: (4, 8, 16, 32, 64)
+  #  PRE_NMS_TOP_N_TRAIN: 2000
+  #  PRE_NMS_TOP_N_TEST: 1000
+  #  POST_NMS_TOP_N_TEST: 1000
+  #  FPN_POST_NMS_TOP_N_TEST: 1000
+  #ROI_HEADS:
+  #  USE_FPN: True
+  #ROI_BOX_HEAD:
+  #  POOLER_RESOLUTION: 7
+  #  POOLER_SCALES: (0.25, 0.125, 0.0625, 0.03125)
+  #  POOLER_SAMPLING_RATIO: 2
+  #  FEATURE_EXTRACTOR: "FPN2MLPFeatureExtractor"
+  #  PREDICTOR: "FPNPredictor"
+
+DATASETS:
+  TRAIN: ("coco_2017_train",)
+  TEST: ("coco_2017_val",)
+SOLVER:
+  IMS_PER_BATCH: 16
+  #BASE_LR: 0.02
+  #STEPS: (60000, 80000)
+  STEPS: (140000, 300000, 350000, 375000) #(280000, 600000, 700000, 750000)
+  #MAX_ITER: 90000
+  MAX_ITER: 400000 #800000
+INPUT:
+  #MIN_SIZE_TRAIN: (640, 672, 704, 736, 768, 800)
+  BASE_LR: 0.002
+  WARMUP_ITERS: 1000
+  DEFAULT_WARMUP_LR: 0.0001
+  WEIGHT_DECAY: 0.0005
+  WARMUP_FACTOR: 0.1
+  #IMS_PER_BATCH : 16
+#DATALOADER:
+#  SIZE_DIVISIBILITY: 32
+#  NUM_WORKERS: 0

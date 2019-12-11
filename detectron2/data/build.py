@@ -21,6 +21,11 @@ from .common import DatasetFromList, MapDataset
 from .dataset_mapper import DatasetMapper
 from .detection_utils import check_metadata_consistency
 
+#Seunghyun Lee added
+from detectron2.modeling.detector.utils.augmentations import SSDAugmentation, BaseTransform
+from projects.Yolact.data.coco import *
+from projects.Yolact import config as yolact_cfg
+
 """
 This file contains the default logic to build a dataloader for training or testing.
 """
@@ -28,6 +33,8 @@ This file contains the default logic to build a dataloader for training or testi
 __all__ = [
     "build_detection_train_loader",
     "build_detection_test_loader",
+    "build_yolact_detection_test_loader",  #Seunghyun Lee added
+    "build_yolact_detection_train_loader", #Seunghyun Lee added
     "get_detection_dataset_dicts",
     "load_proposals_into_dataset",
     "print_instances_class_histogram",
@@ -289,6 +296,182 @@ def get_detection_dataset_dicts(
             pass
     return dataset_dicts
 
+#Seunghyun Lee added
+def build_yolact_detection_train_loader(cfg, mapper=None):
+
+    """
+    A data loader is created by the following steps:
+
+    1. Use the dataset names in config to query :class:`DatasetCatalog`, and obtain a list of dicts.
+    2. Start workers to work on the dicts. Each worker will:
+      * Map each metadata dict into another format to be consumed by the model.
+      * Batch them by simply putting dicts into a list.
+    The batched ``list[mapped_dict]`` is what this dataloader will return.
+
+    Args:
+        cfg (CfgNode): the config
+        mapper (callable): a callable which takes a sample (dict) from dataset and
+            returns the format to be consumed by the model.
+            By default it will be `DatasetMapper(cfg, True)`.
+
+    Returns:
+        a torch DataLoader object
+    """
+    '''
+    num_workers = get_world_size()
+    images_per_batch = cfg.SOLVER.IMS_PER_BATCH
+    assert (
+        images_per_batch % num_workers == 0
+    ), "SOLVER.IMS_PER_BATCH ({}) must be divisible by the number of workers ({}).".format(
+        images_per_batch, num_workers
+    )
+    assert (
+        images_per_batch >= num_workers
+    ), "SOLVER.IMS_PER_BATCH ({}) must be larger than the number of workers ({}).".format(
+        images_per_batch, num_workers
+    )
+    images_per_worker = images_per_batch // num_workers
+
+    dataset_dicts = get_detection_dataset_dicts(
+        cfg.DATASETS.TRAIN,
+        filter_empty=cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS,
+        min_keypoints=cfg.MODEL.ROI_KEYPOINT_HEAD.MIN_KEYPOINTS_PER_IMAGE
+        if cfg.MODEL.KEYPOINT_ON
+        else 0,
+        proposal_files=cfg.DATASETS.PROPOSAL_FILES_TRAIN if cfg.MODEL.LOAD_PROPOSALS else None,
+    )
+    dataset = DatasetFromList(dataset_dicts, copy=False)
+
+    # Bin edges for batching images with similar aspect ratios. If ASPECT_RATIO_GROUPING
+    # is enabled, we define two bins with an edge at height / width = 1.
+    group_bin_edges = [1] if cfg.DATALOADER.ASPECT_RATIO_GROUPING else []
+    aspect_ratios = [float(img["height"]) / float(img["width"]) for img in dataset]
+
+    if mapper is None:
+        mapper = DatasetMapper(cfg, True)
+    dataset = MapDataset(dataset, mapper)
+
+    sampler_name = cfg.DATALOADER.SAMPLER_TRAIN
+    logger = logging.getLogger(__name__)
+    logger.info("Using training sampler {}".format(sampler_name))
+    if sampler_name == "TrainingSampler":
+        sampler = samplers.TrainingSampler(len(dataset))
+    elif sampler_name == "RepeatFactorTrainingSampler":
+        sampler = samplers.RepeatFactorTrainingSampler(
+            dataset_dicts, cfg.DATALOADER.REPEAT_THRESHOLD
+        )
+    else:
+        raise ValueError("Unknown training sampler: {}".format(sampler_name))
+    batch_sampler = build_batch_data_sampler(
+        sampler, images_per_worker, group_bin_edges, aspect_ratios
+    )
+
+    data_loader = torch.utils.data.DataLoader(
+        dataset,
+        num_workers=cfg.DATALOADER.NUM_WORKERS,
+        batch_sampler=batch_sampler,
+        collate_fn=trivial_batch_collator,
+        worker_init_fn=worker_init_reset_seed,
+    )'''
+    dataset = COCODetection(image_path=yolact_cfg.dataset.train_images,
+                            info_file=yolact_cfg.dataset.train_info,
+                            transform=SSDAugmentation(yolact_cfg.MEANS))
+
+    data_loader = torch.utils.data.DataLoader(dataset,
+                                              cfg.SOLVER.IMS_PER_BATCH, # 4
+                                              num_workers=cfg.DATALOADER.NUM_WORKERS,
+                                              shuffle=True,
+                                              collate_fn=detection_collate,
+                                              pin_memory=True)
+    return data_loader
+
+#Seunghyun Lee added
+def build_yolact_detection_test_loader(cfg, dataset_name, mapper=None):
+    """
+    Similar to `build_detection_train_loader`.
+    But this function uses the given `dataset_name` argument (instead of the names in cfg),
+    and uses batch size 1.
+
+    Args:
+        cfg: a detectron2 CfgNode
+        dataset_name (str): a name of the dataset that's available in the DatasetCatalog
+        mapper (callable): a callable which takes a sample (dict) from dataset
+           and returns the format to be consumed by the model.
+           By default it will be `DatasetMapper(cfg, False)`.
+
+    Returns:
+        DataLoader: a torch DataLoader, that loads the given detection
+        dataset, with test-time transformation and batching.
+    """
+    '''
+    dataset_dicts = get_detection_dataset_dicts(
+        [dataset_name],
+        filter_empty=False,
+        proposal_files=[
+            cfg.DATASETS.PROPOSAL_FILES_TEST[list(cfg.DATASETS.TEST).index(dataset_name)]
+        ]
+        if cfg.MODEL.LOAD_PROPOSALS
+        else None,
+    )
+
+    dataset = DatasetFromList(dataset_dicts)
+    if mapper is None:
+        mapper = DatasetMapper(cfg, False)
+    dataset = MapDataset(dataset, mapper)
+
+    sampler = samplers.InferenceSampler(len(dataset))
+    # Always use 1 image per worker during inference since this is the
+    # standard when reporting inference time in papers.
+    batch_sampler = torch.utils.data.sampler.BatchSampler(sampler, 1, drop_last=False)
+    data_loader = torch.utils.data.DataLoader(
+        dataset,
+        num_workers=cfg.DATALOADER.NUM_WORKERS,
+        batch_sampler=batch_sampler,
+        collate_fn=trivial_batch_collator,
+    )
+    '''
+
+    dataset = COCODetection(image_path=yolact_cfg.valid_images,
+                            info_file=yolact_cfg.valid_info,
+                            transform=BaseTransform(yolact_cfg.MEANS))
+
+    data_loader = torch.utils.data.DataLoader(dataset,
+                                              cfg.SOLVER.IMS_PER_BATCH, #4
+                                              num_workers=cfg.DATALOADER.NUM_WORKERS,
+                                              shuffle=True,
+                                              collate_fn=detection_collate,
+                                              pin_memory=True)
+    return data_loader
+
+
+def detection_collate(batch):
+    """Custom collate fn for dealing with batches of images that have a different
+    number of associated object annotations (bounding boxes).
+
+    Arguments:
+        batch: (tuple) A tuple of tensor images and (lists of annotations, masks)
+
+    Return:
+        A tuple containing:
+            1) (tensor) batch of images stacked on their 0 dim
+            2) (list<tensor>, list<tensor>, list<int>) annotations for a given image are stacked
+                on 0 dim. The output gt is a tuple of annotations and masks.
+    """
+    targets = []
+    imgs = []
+    masks = []
+    num_crowds = []
+
+    for sample in batch:
+        imgs.append(sample[0])
+        targets.append(torch.FloatTensor(sample[1][0]))
+        masks.append(torch.FloatTensor(sample[1][1]))
+        num_crowds.append(sample[1][2])
+
+    return imgs, (targets, masks, num_crowds)
+
+# check how to crop/resize original coco image/seg data and then load those.
+# yolact's dataset=CocodetectionData(...)-> torch utils data.Dataloader(dataset,..)
 
 def build_detection_train_loader(cfg, mapper=None):
     """

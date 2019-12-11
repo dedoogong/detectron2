@@ -17,7 +17,7 @@ from detectron2.modeling.detector.utils import timer
 from detectron2.modeling.detector.layers.interpolate import InterpolateModule
 import numpy as np
 import torch.nn.functional as F
-from projects.Yolact import config
+from projects.Yolact.config import cfg as config
 from detectron2.layers.modules.multibox_loss import MultiBoxLoss
 criterion = MultiBoxLoss(num_classes=config.num_classes,
                              pos_threshold=config.positive_iou_threshold,
@@ -190,7 +190,7 @@ class YolactBackboneWithFPN(nn.Module):
 
 
         ## Yolact start ##
-        self.cfg = config.yolact_base_config
+        self.cfg = config
         #self.rpn = build_rpn(cfg, self.backbone.out_channels)
         #self.roi_heads = build_roi_heads(cfg, self.backbone.out_channels)
         ################################################################

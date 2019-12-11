@@ -6,8 +6,8 @@ import types
 from numpy import random
 
 
-from data import cfg_yolact as cfg
-from data import MEANS, STD
+from projects.Yolact import config as cfg
+from projects.Yolact.config import MEANS, STD
 
 def intersect(box_a, box_b):
     max_xy = np.minimum(box_a[:, 2:], box_b[2:])

@@ -491,6 +491,9 @@ coco_base_config = Config({
     'positive_iou_threshold': 0.5,
     'negative_iou_threshold': 0.5,
 
+    # When using ohem, the ratio between positives and negatives (3 means 3 negatives to 1 positive)
+    'ohem_negpos_ratio': 3,
+
     # If less than 1, anchors treated as a negative that have a crowd iou over this threshold with
     # the crowd boxes will be treated as a neutral.
     'crowd_iou_threshold': 1,

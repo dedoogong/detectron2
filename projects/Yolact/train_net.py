@@ -8,13 +8,13 @@ import os
 import detectron2.utils.comm as comm
 from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.config import get_cfg
-from detectron2.engine import DefaultTrainer, default_argument_parser, default_setup, launch
+from detectron2.engine import DefaultTrainer, YolactTrainer, default_argument_parser, default_setup, launch
 from detectron2.evaluation import COCOEvaluator, verify_results
 from projects.Yolact.yolact_config import add_yolact_config
 
 loss_types = ['B', 'C', 'M', 'P', 'D', 'E', 'S']
 
-class Trainer(DefaultTrainer):
+class Trainer(YolactTrainer):
     @classmethod
     def build_evaluator(cls, cfg, dataset_name, output_folder=None):
         if output_folder is None:
@@ -46,7 +46,7 @@ def main(args):
             verify_results(cfg, res)
         return res
 
-    trainer = Trainer(cfg)
+    trainer = YolactTrainer(cfg)
     trainer.resume_or_load(resume=args.resume)
     return trainer.train()
 

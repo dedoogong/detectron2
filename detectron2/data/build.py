@@ -373,8 +373,8 @@ def build_yolact_detection_train_loader(cfg, mapper=None):
         collate_fn=trivial_batch_collator,
         worker_init_fn=worker_init_reset_seed,
     )'''
-    dataset = COCODetection(image_path=yolact_cfg.dataset.train_images,
-                            info_file=yolact_cfg.dataset.train_info,
+    dataset = COCODetection(image_path=yolact_cfg.dataset_base.train_images,
+                            info_file=yolact_cfg.dataset_base.train_info,
                             transform=SSDAugmentation(yolact_cfg.MEANS))
 
     data_loader = torch.utils.data.DataLoader(dataset,
@@ -431,8 +431,8 @@ def build_yolact_detection_test_loader(cfg, dataset_name, mapper=None):
     )
     '''
 
-    dataset = COCODetection(image_path=yolact_cfg.valid_images,
-                            info_file=yolact_cfg.valid_info,
+    dataset = COCODetection(image_path=yolact_cfg.dataset_base.valid_images,
+                            info_file=yolact_cfg.dataset_base.valid_info,
                             transform=BaseTransform(yolact_cfg.MEANS))
 
     data_loader = torch.utils.data.DataLoader(dataset,

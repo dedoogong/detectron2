@@ -6,7 +6,7 @@ import types
 from numpy import random
 
 
-from projects.Yolact import config as cfg
+from projects.Yolact.config import cfg
 from projects.Yolact.config import MEANS, STD
 
 def intersect(box_a, box_b):

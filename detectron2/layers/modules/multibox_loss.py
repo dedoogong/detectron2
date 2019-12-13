@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from ..box_utils import match, log_sum_exp, decode, center_size, crop
+from ..box_utils import match, log_sum_exp, decode, center_size, crop, sanitize_coordinates
 
 from detectron2.data import *
 from projects.Yolact import config
@@ -438,8 +438,8 @@ class MultiBoxLoss(nn.Module):
                 num_pos, img_height, img_width = pos_masks.size()
 
                 # Take care of all the bad behavior that can be caused by out of bounds coordinates
-                x1, x2 = self.sanitize_coordinates(pos_bboxes[:, 0], pos_bboxes[:, 2], img_width)
-                y1, y2 = self.sanitize_coordinates(pos_bboxes[:, 1], pos_bboxes[:, 3], img_height)
+                x1, x2 = sanitize_coordinates(pos_bboxes[:, 0], pos_bboxes[:, 2], img_width)
+                y1, y2 = sanitize_coordinates(pos_bboxes[:, 1], pos_bboxes[:, 3], img_height)
 
                 # Crop each gt mask with the predicted bbox and rescale to the predicted mask size
                 # Note that each bounding box crop is a different size so I don't think we can vectorize this

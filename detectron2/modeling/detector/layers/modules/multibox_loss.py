@@ -3,11 +3,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from ..box_utils import match, log_sum_exp, decode, center_size, crop
 from detectron2.data import *
 #from data.config import set_cfg
 #set_cfg('yolact_base_config')
 #from data import cfg, mask_type, activation_func
+from ..box_utils import match, log_sum_exp, decode, center_size, crop, sanitize_coordinates
 
 class MultiBoxLoss(nn.Module):
     """SSD Weighted Loss Function

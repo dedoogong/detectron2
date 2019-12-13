@@ -92,14 +92,6 @@ def make_net(in_channels, conf, include_last_relu=True):
 
 @META_ARCH_REGISTRY.register()
 class YolactBackboneWithFPN(nn.Module):
-    """
-    Main class for Generalized R-CNN. Currently supports boxes and masks.
-    It consists of three main parts:
-    - backbone
-    - rpn
-    - heads: takes the features + the proposals from the RPN and computes
-        detections / masks from it.
-    """
 
     def freeze_bn(self):
         """ Adapted from https://discuss.pytorch.org/t/how-to-train-with-frozen-batchnorm/12106/8 """
@@ -184,7 +176,7 @@ class YolactBackboneWithFPN(nn.Module):
         super(YolactBackboneWithFPN, self).__init__()
         cfg = cfg_maskrcnn
         self.device = torch.device(cfg.MODEL.DEVICE)
-        self.backbone = build_backbone(cfg) ## build backbone using default detectron2's settings
+        self.backbone = build_backbone(cfg) # build backbone using default detectron2's settings
 
         #self.freeze_bn() maybe it is alreay done in above step?? check!
 
@@ -333,7 +325,7 @@ class YolactBackboneWithFPN(nn.Module):
         """
         if not self.training:
             return self.inference(batched_inputs)
-
+        '''
         images = self.preprocess_image(batched_inputs)
         if "instances" in batched_inputs[0]:
             targets = [x["instances"].to(self.device) for x in batched_inputs]
@@ -344,9 +336,9 @@ class YolactBackboneWithFPN(nn.Module):
             targets = [x["targets"].to(self.device) for x in batched_inputs]
         else:
             targets = None
-
+        
         #features = self.backbone(images.tensor)
-
+        '''
         '''
         ### 1)
         backbone = build_backbone(self.cfg)
@@ -384,8 +376,8 @@ class YolactBackboneWithFPN(nn.Module):
             losses.update(proposal_losses)
             return losses
         '''
-
-        outs = self.backbone(images.tensor) #caution : use ".tensor" !!!!
+        images, (targets, masks, num_crowds) = batched_inputs
+        outs = self.backbone(images[0])#.tensor) #images.tensor) #caution : use ".tensor" !!!!
         proto_out = None
         if self.mask_type == self.mask_type_lincomb and self.eval_mask_branch:
             with timer.env('proto'):
@@ -472,9 +464,11 @@ class YolactBackboneWithFPN(nn.Module):
             if self.use_semantic_segmentation_loss:
                 pred_outs['segm'] = self.semantic_seg_conv(outs[0])
 
-            loss=criterion(pred_outs, targets, masks, num_crowds)
-
-            return pred_outs, loss
+            losses = {}
+            yolact_loss=criterion(pred_outs, targets, masks, num_crowds)########TODO loss + data loader (does it load images, targets, masks, num_crowds correctly?)
+            losses.update(yolact_loss)
+            return losses
+            #return pred_outs, loss
         else:
             if self.use_sigmoid_focal_loss:
                 # Note: even though conf[0] exists, this mode doesn't train it so don't use it

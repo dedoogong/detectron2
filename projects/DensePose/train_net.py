@@ -12,7 +12,7 @@ import os
 import detectron2.utils.comm as comm
 from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.config import get_cfg
-from detectron2.data import build_detection_test_loader, build_detection_train_loader
+from detectron2.data import build_detection_test_loader, build_detection_train_loader, build_yolact_detection_train_loader, build_yolact_detection_test_loader
 from detectron2.engine import DefaultTrainer, default_argument_parser, default_setup, launch
 from detectron2.evaluation import COCOEvaluator, DatasetEvaluators, verify_results
 from detectron2.utils.logger import setup_logger
@@ -36,7 +36,6 @@ class Trainer(DefaultTrainer):
     @classmethod
     def build_train_loader(cls, cfg):
         return build_detection_train_loader(cfg, mapper=DatasetMapper(cfg, True))
-
 
 def setup(args):
     cfg = get_cfg()

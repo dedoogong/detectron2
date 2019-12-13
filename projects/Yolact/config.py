@@ -105,12 +105,12 @@ dataset_base = Config({
     'name': 'Base Dataset',
 
     # Training images and annotations
-    'train_images': './data/coco/images/',
-    'train_info':   'path_to_annotation_file',
+    'train_images': '/home/ktai01/detectron2/datasets/coco/images/',
+    'train_info':   '/home/ktai01/detectron2/datasets/coco/annotations/instances_train2017.json',
 
     # Validation images and annotations.
-    'valid_images': './data/coco/images/',
-    'valid_info':   'path_to_annotation_file',
+    'valid_images': '/home/ktai01/detectron2/datasets/coco/images/',
+    'valid_info':   '/home/ktai01/detectron2/datasets/coco/annotations/instances_val2017.json',
 
     # Whether or not to load GT. If this is False, eval.py quantitative evaluation won't work.
     'has_gt': True,
@@ -126,9 +126,9 @@ dataset_base = Config({
 
 coco2014_dataset = dataset_base.copy({
     'name': 'COCO 2014',
-    
-    'train_info': './data/coco/annotations/instances_train2014.json',
-    'valid_info': './data/coco/annotations/instances_val2014.json',
+
+    'train_info': '/home/ktai01/detectron2/datasets/coco/annotations/instances_train2014.json',
+    'valid_info': '/home/ktai01/detectron2/datasets/coco/annotations/instances_val2014.json',
 
     'label_map': COCO_LABEL_MAP
 })
@@ -136,8 +136,8 @@ coco2014_dataset = dataset_base.copy({
 coco2017_dataset = dataset_base.copy({
     'name': 'COCO 2017',
     
-    'train_info': './data/coco/annotations/instances_train2017.json',
-    'valid_info': './data/coco/annotations/instances_val2017.json',
+    'train_info': '/home/ktai01/detectron2/datasets/coco/annotations/instances_train2017.json',
+    'valid_info': '/home/ktai01/detectron2/datasets/coco/annotations/instances_val2017.json',
 
     'label_map': COCO_LABEL_MAP
 })
@@ -145,7 +145,7 @@ coco2017_dataset = dataset_base.copy({
 coco2017_testdev_dataset = dataset_base.copy({
     'name': 'COCO 2017 Test-Dev',
 
-    'valid_info': './data/coco/annotations/image_info_test-dev2017.json',
+    'valid_info': '/home/ktai01/detectron2/datasets/coco/annotations/image_info_test-dev2017.json',
     'has_gt': False,
 
     'label_map': COCO_LABEL_MAP

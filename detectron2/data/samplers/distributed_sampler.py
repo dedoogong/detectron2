@@ -5,10 +5,7 @@ from collections import defaultdict
 from typing import Optional
 import torch
 from torch.utils.data.sampler import Sampler
-
 from detectron2.utils import comm
-
-
 class TrainingSampler(Sampler):
     """
     In training, we only care about the "infinite stream" of training data.
@@ -20,7 +17,6 @@ class TrainingSampler(Sampler):
     `shuffle(range(size)) + shuffle(range(size)) + ...` (if shuffle is True)
     or `range(size) + range(size) + ...` (if shuffle is False)
     """
-
     def __init__(self, size: int, shuffle: bool = True, seed: Optional[int] = None):
         """
         Args:

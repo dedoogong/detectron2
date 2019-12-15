@@ -373,15 +373,57 @@ def build_yolact_detection_train_loader(cfg, mapper=None):
         collate_fn=trivial_batch_collator,
         worker_init_fn=worker_init_reset_seed,
     )'''
+
     dataset = COCODetection(image_path=yolact_cfg.dataset_base.train_images,
                             info_file=yolact_cfg.dataset_base.train_info,
                             transform=SSDAugmentation(yolact_cfg.MEANS))
+    num_workers = get_world_size()
+    images_per_batch = cfg.SOLVER.IMS_PER_BATCH
+    assert (
+            images_per_batch % num_workers == 0
+    ), "SOLVER.IMS_PER_BATCH ({}) must be divisible by the number of workers ({}).".format(
+        images_per_batch, num_workers
+    )
+    assert (
+            images_per_batch >= num_workers
+    ), "SOLVER.IMS_PER_BATCH ({}) must be larger than the number of workers ({}).".format(
+        images_per_batch, num_workers
+    )
+    images_per_worker = images_per_batch // num_workers
 
-    data_loader = torch.utils.data.DataLoader(dataset,
-                                              cfg.SOLVER.IMS_PER_BATCH, # 4
+    dataset_dicts = get_detection_dataset_dicts(
+        cfg.DATASETS.TRAIN,
+        filter_empty=cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS,
+        min_keypoints=cfg.MODEL.ROI_KEYPOINT_HEAD.MIN_KEYPOINTS_PER_IMAGE
+        if cfg.MODEL.KEYPOINT_ON
+        else 0,
+        proposal_files=cfg.DATASETS.PROPOSAL_FILES_TRAIN if cfg.MODEL.LOAD_PROPOSALS else None,
+    )
+    ######################################################
+    #dataset = DatasetFromList(dataset_dicts, copy=False)#
+    ######################################################
+    # Bin edges for batching images with similar aspect ratios. If ASPECT_RATIO_GROUPING
+    # is enabled, we define two bins with an edge at height / width = 1.
+    dataset2 = DatasetFromList(dataset_dicts, copy=False)  #
+    group_bin_edges = [1] if cfg.DATALOADER.ASPECT_RATIO_GROUPING else []
+    aspect_ratios = [float(img["height"]) / float(img["width"]) for img in dataset2]
+    if mapper is None:
+        mapper = DatasetMapper(cfg, True)
+    dataset2 = MapDataset(dataset2, mapper)
+
+    sampler_name = cfg.DATALOADER.SAMPLER_TRAIN
+    logger = logging.getLogger(__name__)
+    logger.info("Using training sampler {}".format(sampler_name))
+    sampler = samplers.TrainingSampler(len(dataset))
+    batch_sampler = build_batch_data_sampler(
+        sampler, images_per_worker, group_bin_edges, aspect_ratios
+    )
+    data_loader = torch.utils.data.DataLoader(dataset,  #cfg.SOLVER.IMS_PER_BATCH, # 4
                                               num_workers=cfg.DATALOADER.NUM_WORKERS,
-                                              shuffle=True,
-                                              collate_fn=detection_collate,
+                                              batch_sampler=batch_sampler,
+                                              #shuffle=True,
+                                              collate_fn=detection_collate, # trivial_batch_collator
+                                              worker_init_fn=worker_init_reset_seed,
                                               pin_memory=True)
     return data_loader
 
@@ -522,14 +564,14 @@ def build_detection_train_loader(cfg, mapper=None):
     aspect_ratios = [float(img["height"]) / float(img["width"]) for img in dataset]
 
     if mapper is None:
-        mapper = DatasetMapper(cfg, True)
-    dataset = MapDataset(dataset, mapper)
+        mapper = DatasetMapper(cfg, True)#instance,target segmentation keypoints annotations mappper
+    dataset = MapDataset(dataset, mapper)#this is just errorneous data handler  (maybe)
 
     sampler_name = cfg.DATALOADER.SAMPLER_TRAIN
     logger = logging.getLogger(__name__)
     logger.info("Using training sampler {}".format(sampler_name))
     if sampler_name == "TrainingSampler":
-        sampler = samplers.TrainingSampler(len(dataset))
+        sampler = samplers.TrainingSampler(len(dataset)) #this is just shuffled/or sequential index generator
     elif sampler_name == "RepeatFactorTrainingSampler":
         sampler = samplers.RepeatFactorTrainingSampler(
             dataset_dicts, cfg.DATALOADER.REPEAT_THRESHOLD

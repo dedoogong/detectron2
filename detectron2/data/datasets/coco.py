@@ -16,17 +16,11 @@ from fvcore.common.file_io import PathManager
 
 
 from .. import MetadataCatalog, DatasetCatalog
-
 """
 This file contains functions to parse COCO-format annotations into dicts in "Detectron2 format".
 """
-
-
 logger = logging.getLogger(__name__)
-
 __all__ = ["load_coco_json", "load_sem_seg"]
-
-
 def load_coco_json(json_file, image_root, dataset_name=None, extra_annotation_keys=None):
     """
     Load a json file with COCO's instances annotation format.
@@ -194,7 +188,6 @@ Category ids in annotations are not in [1, #categories]! We'll apply a mapping f
         )
     return dataset_dicts
 
-
 def load_sem_seg(gt_root, image_root, gt_ext="png", image_ext="jpg"):
     """
     Load semantic segmentation datasets. All files under "gt_root" with "gt_ext" extension are
@@ -273,7 +266,6 @@ def load_sem_seg(gt_root, image_root, gt_ext="png", image_ext="jpg"):
         dataset_dicts.append(record)
 
     return dataset_dicts
-
 
 def convert_to_coco_dict(dataset_name):
     """
@@ -386,7 +378,6 @@ def convert_to_coco_dict(dataset_name):
     }
     return coco_dict
 
-
 def convert_to_coco_json(dataset_name, output_folder="", allow_cached=True):
     """
     Converts dataset into COCO format and saves it to a json file.
@@ -417,7 +408,6 @@ def convert_to_coco_json(dataset_name, output_folder="", allow_cached=True):
             json.dump(coco_dict, json_file)
 
     return cache_path
-
 
 if __name__ == "__main__":
     """

@@ -126,7 +126,8 @@ void ROIAlignForward(
     const int sampling_ratio,
     const T* rois,
     T* output,
-    bool aligned) {
+    bool aligned)
+    {
   int n_rois = nthreads / channels / pooled_width / pooled_height;
   // (n, c, ph, pw) is an element in the pooled output
   // can be parallelized using omp
@@ -231,7 +232,8 @@ void bilinear_interpolate_gradient(
     int& x_high,
     int& y_low,
     int& y_high,
-    const int index /* index for debug only*/) {
+    const int index /* index for debug only*/)
+     {
   // deal with cases that inverse elements are out of feature map boundary
   if (y < -1.0 || y > height || x < -1.0 || x > width) {
     // empty
@@ -404,7 +406,8 @@ at::Tensor ROIAlign_forward_cpu(
     const int pooled_height,
     const int pooled_width,
     const int sampling_ratio,
-    bool aligned) {
+    bool aligned)
+    {
   AT_ASSERTM(input.device().is_cpu(), "input must be a CPU tensor");
   AT_ASSERTM(rois.device().is_cpu(), "rois must be a CPU tensor");
 
@@ -455,7 +458,8 @@ at::Tensor ROIAlign_backward_cpu(
     const int height,
     const int width,
     const int sampling_ratio,
-    bool aligned) {
+    bool aligned)
+    {
   AT_ASSERTM(grad.device().is_cpu(), "grad must be a CPU tensor");
   AT_ASSERTM(rois.device().is_cpu(), "rois must be a CPU tensor");
 

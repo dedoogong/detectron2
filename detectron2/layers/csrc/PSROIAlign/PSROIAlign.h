@@ -4,17 +4,16 @@
 
 namespace detectron2 {
 
-at::Tensor PSROIAlign_forward_cpu(
+at::Tensor PSRoIAlign_forward_cpu(
     const at::Tensor& input,
     const at::Tensor& rois,
     const float spatial_scale,
     const int pooled_height,
     const int pooled_width,
     const int sampling_ratio,
-    bool aligned,
-    );
+    bool aligned);
 
-at::Tensor PSROIAlign_backward_cpu(
+at::Tensor PSRoIAlign_backward_cpu(
     const at::Tensor& grad,
     const at::Tensor& rois,
     const float spatial_scale,
@@ -29,7 +28,7 @@ at::Tensor PSROIAlign_backward_cpu(
 
 #ifdef WITH_CUDA
 /*
-at::Tensor PSROIAlign_forward_cuda(
+at::Tensor PSRoIAlign_forward_cuda(
     const at::Tensor& input,
     const at::Tensor& rois,
     const float spatial_scale,
@@ -45,13 +44,12 @@ at::Tensor PSRoIAlign_forward_cuda(
     const int pooled_height,
     const int pooled_width,
     const int sampling_ratio,
-    bool aligned,
     int* mapping_channel,
     const int group_size,
-    int* argmax_position
-    );
+    int* argmax_position,
+    bool aligned);
 
-at::Tensor PSROIAlign_backward_cuda(
+at::Tensor PSRoIAlign_backward_cuda(
     const at::Tensor& grad,
     const at::Tensor& rois,
     const float spatial_scale,
@@ -66,7 +64,7 @@ at::Tensor PSROIAlign_backward_cuda(
 #endif
 
 // Interface for Python
-inline at::Tensor PSROIAlign_forward(
+inline at::Tensor PSRoIAlign_forward(
     const at::Tensor& input,
     const at::Tensor& rois,
     const float spatial_scale,
@@ -82,24 +80,23 @@ inline at::Tensor PSROIAlign_forward(
   if (input.type().is_cuda()) {
 
 #ifdef WITH_CUDA
-    return PSROIAlign_forward_cuda(
+    return PSRoIAlign_forward_cuda(
         input,
         rois,
         spatial_scale,
         pooled_height,
         pooled_width,
         sampling_ratio,
-        aligned,
         mapping_channel,
         group_size,
-        argmax_position);
-
+        argmax_position,
+        aligned);
 #else
     AT_ERROR("Not compiled with GPU support");
 #endif
 
   }
-  return PSROIAlign_forward_cpu(
+  return PSRoIAlign_forward_cpu(
       input,
       rois,
       spatial_scale,
@@ -108,8 +105,8 @@ inline at::Tensor PSROIAlign_forward(
       sampling_ratio,
       aligned);
 }
-
-inline at::Tensor PSROIAlign_backward( // same as PSAlignPoolBackwardLauncher
+// same as PSAlignPoolBackwardLauncher
+inline at::Tensor PSRoIAlign_backward(
     const at::Tensor& grad,
     const at::Tensor& rois,
     const float spatial_scale,
@@ -127,7 +124,7 @@ inline at::Tensor PSROIAlign_backward( // same as PSAlignPoolBackwardLauncher
   if (grad.type().is_cuda()) {
 
 #ifdef WITH_CUDA
-    return PSROIAlign_backward_cuda(
+    return PSRoIAlign_backward_cuda(
         grad,
         rois,
         spatial_scale,
@@ -146,7 +143,7 @@ inline at::Tensor PSROIAlign_backward( // same as PSAlignPoolBackwardLauncher
 
   }
 
-  return PSROIAlign_backward_cpu(
+  return PSRoIAlign_backward_cpu(
       grad,
       rois,
       spatial_scale,

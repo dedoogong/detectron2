@@ -19,8 +19,10 @@ struct PreCalc {
 
 template <typename T>
 void pre_calc_for_bilinear_interpolate(
-    const int height, const int width, const int pooled_height, const int pooled_width,
-    const int iy_upper, const int ix_upper, T roi_start_h, T roi_start_w, T bin_size_h, T bin_size_w,
+    const int height, const int width,
+    const int pooled_height, const int pooled_width,
+    const int iy_upper, const int ix_upper,
+    T roi_start_h, T roi_start_w, T bin_size_h, T bin_size_w,
     int roi_bin_grid_h, int roi_bin_grid_w, std::vector<PreCalc<T>>& pre_calc) {
 
       int pre_calc_index = 0;
@@ -88,7 +90,7 @@ void pre_calc_for_bilinear_interpolate(
 }
 
 template <typename T>
-void PSROIAlignForward( const int nthreads,
+void PSRoIAlignForward( const int nthreads,
     const T* input, const T& spatial_scale,
     const int channels, const int height, const int width,
     const int pooled_height, const int pooled_width, const int sampling_ratio,
@@ -113,7 +115,7 @@ void PSROIAlignForward( const int nthreads,
         if (aligned) {
           AT_ASSERTM(
               roi_width >= 0 && roi_height >= 0,
-              "ROIs in PSROIAlign cannot have non-negative size!");
+              "ROIs in PSRoIAlign cannot have non-negative size!");
         } else { // for backward-compatibility only
           roi_width  = std::max(roi_width, (T)1.);
           roi_height = std::max(roi_height, (T)1.); }
@@ -169,7 +171,8 @@ void bilinear_interpolate_gradient(
     int& x_high,
     int& y_low,
     int& y_high,
-    const int index /* index for debug only*/) {
+    const int index /* index for debug only*/)
+    {
   // deal with cases that inverse elements are out of feature map boundary
   if (y < -1.0 || y > height || x < -1.0 || x > width) { // empty
     w1 = w2 = w3 = w4 = 0.;
@@ -221,7 +224,7 @@ inline void add(T* address, const T& val) {
 }
 
 template <typename T>
-void PSROIAlignBackward(
+void PSRoIAlignBackward(
     const int nthreads,
     const T* grad_output,
     const T& spatial_scale,
@@ -238,7 +241,8 @@ void PSROIAlignBackward(
     const int h_stride,
     const int w_stride,
     bool aligned) {
-  for (int index = 0; index < nthreads; index++) {
+  for (int index = 0; index < nthreads; index++)
+  {
     // (n, c, ph, pw) is an element in the pooled output
     int pw = index % pooled_width;
     int ph = (index / pooled_width) % pooled_height;
@@ -260,7 +264,7 @@ void PSROIAlignBackward(
     if (aligned) {
       AT_ASSERTM(
           roi_width >= 0 && roi_height >= 0,
-          "ROIs in PSROIAlign do not have non-negative size!");
+          "ROIs in PSRoIAlign do not have non-negative size!");
     } else { // for backward-compatibility only
       roi_width = std::max(roi_width, (T)1.);
       roi_height = std::max(roi_height, (T)1.);
@@ -328,26 +332,27 @@ void PSROIAlignBackward(
       } // ix
     } // iy
   } // for
-} // PSROIAlignBackward
+} // PSRoIAlignBackward
 
 } // namespace
 
 namespace detectron2 {
 
-at::Tensor PSROIAlign_forward_cpu(
+at::Tensor PSRoIAlign_forward_cpu(
     const at::Tensor& input,
     const at::Tensor& rois,
     const float spatial_scale,
     const int pooled_height,
     const int pooled_width,
     const int sampling_ratio,
-    bool aligned) {
+    bool aligned)
+    {
   AT_ASSERTM(input.device().is_cpu(), "input must be a CPU tensor");
   AT_ASSERTM(rois.device().is_cpu(), "rois must be a CPU tensor");
 
   at::TensorArg input_t{input, "input", 1}, rois_t{rois, "rois", 2};
 
-  at::CheckedFrom c = "PSROIAlign_forward_cpu";
+  at::CheckedFrom c = "PSRoIAlign_forward_cpu";
   at::checkAllSameType(c, {input_t, rois_t});
 
   auto num_rois = rois.size(0);
@@ -363,8 +368,8 @@ at::Tensor PSROIAlign_forward_cpu(
   if (output.numel() == 0)
     return output;
 
-  AT_DISPATCH_FLOATING_TYPES_AND_HALF(input.type(), "PSROIAlign_forward", [&] {
-    PSROIAlignForward<scalar_t>(
+  AT_DISPATCH_FLOATING_TYPES_AND_HALF(input.type(), "PSRoIAlign_forward", [&] {
+    PSRoIAlignForward<scalar_t>(
         output_size,
         input.contiguous().data_ptr<scalar_t>(),
         spatial_scale,
@@ -381,7 +386,7 @@ at::Tensor PSROIAlign_forward_cpu(
   return output;
 }
 
-at::Tensor PSROIAlign_backward_cpu(
+at::Tensor PSRoIAlign_backward_cpu(
     const at::Tensor& grad,
     const at::Tensor& rois,
     const float spatial_scale,
@@ -392,13 +397,14 @@ at::Tensor PSROIAlign_backward_cpu(
     const int height,
     const int width,
     const int sampling_ratio,
-    bool aligned) {
+    bool aligned)
+    {
   AT_ASSERTM(grad.device().is_cpu(), "grad must be a CPU tensor");
   AT_ASSERTM(rois.device().is_cpu(), "rois must be a CPU tensor");
 
   at::TensorArg grad_t{grad, "grad", 1}, rois_t{rois, "rois", 2};
 
-  at::CheckedFrom c = "PSROIAlign_backward_cpu";
+  at::CheckedFrom c = "PSRoIAlign_backward_cpu";
   at::checkAllSameType(c, {grad_t, rois_t});
 
   at::Tensor grad_input = at::zeros({batch_size, channels, height, width}, grad.options());
@@ -414,8 +420,8 @@ at::Tensor PSROIAlign_backward_cpu(
   int h_stride = grad.stride(2);
   int w_stride = grad.stride(3);
 
-  AT_DISPATCH_FLOATING_TYPES_AND_HALF(grad.type(), "PSROIAlign_forward", [&] {
-    PSROIAlignBackward<scalar_t>(
+  AT_DISPATCH_FLOATING_TYPES_AND_HALF(grad.type(), "PSRoIAlign_forward", [&] {
+    PSRoIAlignBackward<scalar_t>(
         grad.numel(),
         grad.contiguous().data_ptr<scalar_t>(),
         spatial_scale,

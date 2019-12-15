@@ -52,7 +52,8 @@ __global__ void PSRoIAlignForward(
     const int output_dim,  // bottom_data.dim_size(3)/ group_size_ / group_size_;
     int* mapping_channel,
     int* argmax_position,
-    bool aligned) {
+    bool aligned)
+    {
       CUDA_1D_KERNEL_LOOP(index, nthreads) {    // (n, c, ph, pw) is an element in the pooled output
         int pw = index % pooled_width;
         int ph = (index / pooled_width) % pooled_height;
@@ -78,16 +79,19 @@ __global__ void PSRoIAlignForward(
         // We use roi_bin_grid to sample the grid and mimic integral
         int roi_bin_grid_h = (sampling_ratio > 0) ? sampling_ratio : ceil(roi_height / pooled_height); // e.g., = 2
         int roi_bin_grid_w = (sampling_ratio > 0) ? sampling_ratio : ceil(roi_width / pooled_width);
+        float sample_width  = 1.0f / float(roi_bin_grid_w);
 
         if(1){
             // average(integral) pooling inside a bin When the grid is empty, output zeros.
             const T count = max(roi_bin_grid_h * roi_bin_grid_w, 1); // e.g. = 4
             T output_val = 0.;
             for (int iy = 0; iy < roi_bin_grid_h; iy++){ // e.g., iy = 0, 1
-              const T y = roi_start_h+ph * bin_size_h + static_cast<T>(iy + .5f) * bin_size_h / static_cast<T>(roi_bin_grid_h);
+              const T y = roi_start_h+ph * bin_size_h + static_cast<T>(iy + .5f) * bin_size_h /
+                                                        static_cast<T>(roi_bin_grid_h);
               // e.g., 0.5, 1.5
               for (int ix = 0; ix < roi_bin_grid_w; ix++) {
-                const T x = roi_start_w + pw * bin_size_w + static_cast<T>(ix + .5f) * bin_size_w / static_cast<T>(roi_bin_grid_w);
+                const T x = roi_start_w + pw * bin_size_w + static_cast<T>(ix + .5f) * bin_size_w /
+                                                            static_cast<T>(roi_bin_grid_w);
                 T val = bilinear_interpolate( offset_bottom_data, height, width, y, x, index );
                 output_val += val;
               }
@@ -103,21 +107,24 @@ __global__ void PSRoIAlignForward(
             int buf_value = -1;
             T tmp = float(-1e20), tmp2; // == maxval
             for (int iy = 0; iy < roi_bin_grid_h; iy++){ // e.g., iy = 0, 1
-              const T y = roi_start_h+ph * bin_size_h + static_cast<T>(iy + .5f) * bin_size_h / static_cast<T>(roi_bin_grid_h);
+              const T y = roi_start_h+ph * bin_size_h + static_cast<T>(iy + .5f) * bin_size_h /
+                                                        static_cast<T>(roi_bin_grid_h);
               // e.g., 0.5, 1.5
               for (int ix = 0; ix < roi_bin_grid_w; ix++) {
-                const T x = roi_start_w + pw * bin_size_w + static_cast<T>(ix + .5f) * bin_size_w / static_cast<T>(roi_bin_grid_w);
+                const T x = roi_start_w + pw * bin_size_w + static_cast<T>(ix + .5f) * bin_size_w /
+                                                            static_cast<T>(roi_bin_grid_w);
                 tmp2 = bilinear_interpolate( offset_bottom_data, height, width, y, x, index );
 
                 if (tmp2 > tmp) { tmp = tmp2;
                                   buf_value = ix + iy * sample_width; }
                 }
             }
+            argmax_position[index] = buf_value;
+            top_data[index] = tmp;
+            mapping_channel[index] = c;
         }
+
       }
-      argmax_position[index] = buf_value;
-      top_data[index] = output_val;
-      mapping_channel[index] = c;
 }
 
 template <typename T>
@@ -284,9 +291,10 @@ __global__ void PSRoIAlignBackwardFeature(
 namespace detectron2 {
 
 /*
-psalign_pooling_op.psalign_pool( ps_fm, rois, group_size=7, // group_size== pooled height, pooled_width !!
-                                              sample_height=2, sample_width=2, spatial_scale=1.0/16.0
-                                              // int out_channels = num_channels / group_size_ / group_size_;
+psalign_pooling_op.psalign_pool( ps_fm, rois, group_size=7,
+                                // group_size== pooled height, pooled_width !!
+                                 sample_height=2, sample_width=2, spatial_scale=1.0/16.0
+                                // int out_channels = num_channels / group_size_ / group_size_;
 
 bool PSAlignPoolForwardLauncher(
     const float* bottom_data, const float spatial_scale, const int num_rois,
@@ -305,10 +313,11 @@ bool PSAlignPoolForwardLauncher(
     PSAlignPoolingForward<<<(output_size + kThreadsPerBlock - 1) / kThreadsPerBlock,
                             kThreadsPerBlock,
                             0,
-                            d.stream()>>>(output_size, bottom_data, spatial_scale, channels, height, width,
-                                        pooled_height, pooled_width, sample_height, sample_width,
-                                        bottom_rois, output_dim, group_size,
-                                        top_data, mapping_channel, argmax_position);
+                            d.stream()>>>(output_size, bottom_data, spatial_scale,
+                            channels, height, width,
+                            pooled_height, pooled_width, sample_height, sample_width,
+                            bottom_rois, output_dim, group_size,
+                            top_data, mapping_channel, argmax_position);
 */
 at::Tensor PSRoIAlign_forward_cuda(
     const at::Tensor& input,
@@ -317,10 +326,10 @@ at::Tensor PSRoIAlign_forward_cuda(
     const int pooled_height,
     const int pooled_width,
     const int sampling_ratio,
-    bool aligned,
     int* mapping_channel,
     const int group_size,
-    int* argmax_position
+    int* argmax_position,
+    bool aligned
     ) {
   AT_ASSERTM(input.device().is_cuda(), "input must be a CUDA tensor");
   AT_ASSERTM(rois.device().is_cuda(), "rois must be a CUDA tensor");
@@ -366,8 +375,8 @@ at::Tensor PSRoIAlign_forward_cuda(
         group_size,                             /////// const int group_size,
         output.data_ptr<scalar_t>(),            /////// T* top_data,
         output_dim,                             /////// const int bottom_data.dim_size(3)/ group_size_ / group_size_;
-        argmax_position,                        /////// int* argmax_position,
         mapping_channel,                        /////// int* mapping_channel,
+        argmax_position,                        /////// int* argmax_position,
         aligned);
   });
 

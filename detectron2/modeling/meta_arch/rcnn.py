@@ -376,8 +376,13 @@ class YolactBackboneWithFPN(nn.Module):
             losses.update(proposal_losses)
             return losses
         '''
-        images, (targets, masks, num_crowds) = batched_inputs
-        outs = self.backbone(images[0])#.tensor) #images.tensor) #caution : use ".tensor" !!!!
+        images = torch.unsqueeze(batched_inputs[0][0], 0)
+        targets = batched_inputs[1][0][0]
+        masks = torch.unsqueeze(batched_inputs[1][1][0], 0)
+        num_crowds = batched_inputs[1][2][0]
+
+        #images, (targets, masks, num_crowds) = batched_inputs
+        outs = self.backbone(images)#.tensor) #images.tensor) #caution : use ".tensor" !!!!
         proto_out = None
         if self.mask_type == self.mask_type_lincomb and self.eval_mask_branch:
             with timer.env('proto'):

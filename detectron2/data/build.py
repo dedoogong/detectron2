@@ -425,7 +425,16 @@ def build_yolact_detection_train_loader(cfg, mapper=None):
                                               collate_fn=detection_collate, # trivial_batch_collator
                                               worker_init_fn=worker_init_reset_seed,
                                               pin_memory=True)
-    return data_loader
+
+    data_loader2 = torch.utils.data.DataLoader(
+        dataset2,
+        num_workers=cfg.DATALOADER.NUM_WORKERS,
+        batch_sampler=batch_sampler,
+        collate_fn=trivial_batch_collator,
+        worker_init_fn=worker_init_reset_seed,
+    )
+
+    return data_loader, data_loader2
 
 #Seunghyun Lee added
 def build_yolact_detection_test_loader(cfg, dataset_name, mapper=None):
